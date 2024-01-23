@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Money Calculator</title>
+    <!-- https://github.com/mattura/pocketmoneycalculator -->
+    <style>
+      body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.6;
+          margin: 0;
+          padding: 0;
+          background-color: #f8f8f8;
+      }
+      
+      h1 {
+          text-align: center;
+          color: #333;
+          margin: 5px;
+      }
+      
+      form {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 5px;
+          max-width: 600px;
+          margin: 20px auto;
+          padding: 15px;
+          background-color: #fff;
+          box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      form #amountFields {
+          grid-column: span 2;
+      }
+      
+      label {
+          margin-bottom: 8px;
+          color: #333;
+      }
+      #amountFields {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 5px;
+          margin-bottom: 5px;
+      }
+      #calculateButton {
+          grid-column: span 2;
+          padding: 10px;
+          font-size: 1.2em;
+      }
+      #result {
+          grid-column: span 2;
+          margin: 0px;
+      }
+      #result div {
+          text-align: center;
+          font-size: 1.3em;
+          margin: 10px;
+      }
+      #total {
+          font-size: larger;
+          font-weight: bold;
+          background-color: #109100;
+          border-radius: 10px;
+          padding: 10px;
+          color: white;
+      }
+      table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+          border: 1px solid #ddd;
+      }
+      
+      th, td {
+          border: 1px solid #ddd;
+          padding: 4px;
+          text-align: left;
+      }
+      
+      th {
+          background-color: #f2f2f2;
+      }
+      
+      tr:nth-child(even) {
+          background-color: #f9f9f9;
+      }
+    </style>
+</head>
+
+<body>
+    <h1>Pocket Money Calculator</h1>
+
+    <form id="pocketMoneyForm">
+        <label for="dob">Date of Birth:</label>
+        <!-- Some default values: -->
+        <input type="date" id="dob" value="2018-01-01" required onchange="generateAmountFields(true)">
+        <label for="startDate">Start Date:</label>
+        <input type="date" id="startDate" value="2023-06-23" required onchange="generateAmountFields()">
+        <label for="today">End Date:</label>
+        <input type="date" id="today" required onchange="generateAmountFields()">
+        <label for="pocketDay">Pocket Money Day: <span id="pocketDayLabel"></span></label>
+        <input type="range" id="pocketDay" min="0" max="6" step="1" value="5" oninput="updatePocketDay()">
+        <!-- Dynamically generate fields for each age -->
+        <div id="amountFields"></div>
+        <button id="calculateButton" type="button" onclick="calculateTotal()">Calculate Total</button>
+        <p id="result"></p>
+    </form>
+
+    <script>
+        const AGE_RATE = 0.1;   //default per age amount
+        const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const MILLIS_IN_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
+        // Function to dynamically generate amount fields for each age
+        function generateAmountFields(setStart=false) {
+            const amountFieldsContainer = document.getElementById('amountFields');
+            // Clear existing fields
+            amountFieldsContainer.innerHTML = '';
+            // Retrieve date of birth, start date, and today's date
+            let dob = new Date(document.getElementById('dob').value);
+            let startDate = new Date(document.getElementById('startDate').value);
+            let today = new Date(document.getElementById('today').value);
+            //some logic to prevent illegal dates:
+            if (setStart) {
+                startDate = dob.addDays(2000);
+            } else {
+                if (dob > startDate) {startDate = dob;}
+            }
+            if (dob > today) {today = dob}
+            if (startDate > today) {today = startDate;}
+            if (today < startDate || today < dob) {today = new Date(Math.max(startDate));}
+            document.getElementById('dob').value = dob.toISOString().split('T')[0];
+            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('today').value = today.toISOString().split('T')[0];
+            let age = today.getFullYear() - dob.getFullYear();
+            const startage = Math.floor((startDate - dob) / MILLIS_IN_YEAR);
+            const endage = Math.floor((today - dob) / MILLIS_IN_YEAR);
+            // Generate fields for each age
+            for (let i = startage; i <= endage; i++) {
+                const label = document.createElement('label');
+                label.textContent = `Weekly Amount at Age ${i}:`;
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.id = `age${i}`;
+                input.required = true;
+                input.step = '0.1'; // Set step value to 0.1
+                input.value = (i * AGE_RATE).toFixed(2); //defaults
+                amountFieldsContainer.appendChild(label);
+                amountFieldsContainer.appendChild(input);
+            }
+        }
+
+        // Function to update the label for the pocket day slider
+        function updatePocketDay() {
+            const pocketDaySlider = document.getElementById('pocketDay');
+            const pocketDayLabel = document.getElementById('pocketDayLabel');
+            pocketDayLabel.textContent = DAYS_OF_WEEK[pocketDaySlider.value];
+            document.getElementById('calculateButton').focus();
+        }
+
+        function calculateTotal() {
+            // Retrieve date of birth, start date, and today's date
+            const dob = new Date(document.getElementById('dob').value);
+            const startDate = new Date(document.getElementById('startDate').value);
+            const today = new Date(document.getElementById('today').value);
+            // Retrieve the selected day for pocket money
+            const pocketDay = parseInt(document.getElementById('pocketDay').value);
+            // Retrieve amounts for each age from the form
+            let totalAmount = 0;
+            // Calculate the number of days to the next pocket day
+            let daysToPocketDay = (pocketDay - startDate.getDay() + 7) % 7;
+            // Set the initial date to the start date plus the daysToPocketDay
+            let currentDate = new Date(startDate);
+            currentDate.setDate(currentDate.getDate() + daysToPocketDay);
+            // Start counting weeks from the initial date
+            let outputTable = '<table><tr><th></th><th>Date</th><th>Age</th><th>Total</th></tr>';
+            let weeks = 0;
+            while (currentDate <= today) {
+                // Calculate the age based on the date of birth and current date
+                const age = Math.floor((currentDate - dob) / MILLIS_IN_YEAR);
+                // Retrieve the amount for the current age
+                const ageInput = document.getElementById(`age${age}`);
+                const ageAmount = parseFloat(ageInput.value) || 0;
+                // Add the age amount for each week until the next birthday
+                totalAmount += ageAmount;
+                // Format the output date
+                const formattedDate = currentDate.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+                // Add row to the table
+                outputTable += `<tr><td>${++weeks}</td><td>${formattedDate}</td><td>${age}</td><td>${totalAmount.toFixed(2)}</td></tr>`;
+                // Move to the next week
+                currentDate.setDate(currentDate.getDate() + 7);
+            }
+            outputTable += '</table>';
+            outputTable = `<div>Total (${weeks} weeks): <span id='total'>`+totalAmount.toFixed(2)+'</span></div>' + outputTable;
+            // Display the result
+            const resultElement = document.getElementById('result');
+            resultElement.innerHTML = outputTable;
+        }
+
+        //a day adder:
+        Date.prototype.addDays = function(days) {
+            var date = new Date(this.valueOf());
+            date.setDate(date.getDate() + days);
+            return date;
+        }
+
+        // Initial generation of amount fields and pre-fill "Today's Date"
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('today').value = new Date().toISOString().split('T')[0];
+            generateAmountFields();
+            updatePocketDay();
+        });
+
+    </script>
+</body>
+
+</html>
